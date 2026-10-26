@@ -106,10 +106,12 @@ def comms_node(state: DocState, config: RunnableConfig) -> DocState:
                 )
             )
         elif rec.get("mismatch_count"):
-            mismatches = [c["check"] for c in rec["checks"] if not c["ok"]]
-            if rec.get("rate_check") and rec["rate_check"].get("ok") is False:
+            mismatches = [f"{c['check']}: {c['ours']} does not match {c['theirs']}" for c in rec["checks"] if not c["ok"]]
+            rate = rec.get("rate_check") or {}
+            if rate.get("ok") is False:
                 mismatches.append(
-                    f"freight Rs {rec['rate_check']['billed']:,.0f} vs contract Rs {rec['rate_check']['contract_rate']:,.0f}"
+                    f"freight billed Rs {rate['billed']:,.0f} is {rate['difference_pct']}% above the contracted "
+                    f"Rs {rate['contract_rate']:,.0f} for a {rate['vehicle_class_t']:g} T vehicle (contract ref {rate['citation']['id']})"
                 )
             ids.append(
                 run_comms(
@@ -119,6 +121,8 @@ def comms_node(state: DocState, config: RunnableConfig) -> DocState:
                     tracer,
                     llm,
                     document_id=state["document_id"],
+                    # Invoice, e-way bill and LR of one shipment share the invoice number: one dispute thread.
+                    thread_key=fields.get("invoice_no") or reference,
                 )
             )
     return {"approval_ids": ids}

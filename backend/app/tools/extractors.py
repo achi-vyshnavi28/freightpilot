@@ -417,7 +417,13 @@ def ml_extract(doc_type: str, image_bytes: bytes) -> dict:
     with torch.no_grad():
         output = model.generate(pixel_values, decoder_input_ids=prompt_ids, max_length=512)
     sequence = processor.batch_decode(output)[0]
-    return processor.token2json(sequence)
+    parsed = processor.token2json(sequence)
+    # Donut emits strings; the schema coerces "42000.00" -> 42000.0 and drops unknown keys.
+    return (
+        FIELD_MODELS[doc_type]
+        .model_validate({k: v for k, v in parsed.items() if k in FIELD_MODELS[doc_type].model_fields})
+        .model_dump()
+    )
 
 
 # ---------------------------------------------------------------- LLM tier

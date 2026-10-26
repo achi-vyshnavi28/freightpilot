@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: freightpilot
+      POSTGRES_PASSWORD: freightpilot
+      POSTGRES_DB: freightpilot
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U freightpilot"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://freightpilot:freightpilot@db:5432/freightpilot
+      # Leave unset to run the free offline engine; set it to let Claude drive the agents.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      FP_API_KEYS: ${FP_API_KEYS:-}
+      FP_CORS_ORIGINS: http://localhost:8080
+    volumes: [uploads:/app/uploads]
+    depends_on:
+      db: { condition: service_healthy }
+    ports: ["8000:8000"]
+
+  web:
+    build: ./frontend
+    depends_on: [api]
+    ports: ["8080:80"]
+
+volumes:
+  pgdata:
+  uploads:

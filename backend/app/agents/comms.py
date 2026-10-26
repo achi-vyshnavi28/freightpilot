@@ -36,6 +36,21 @@ def write_client_memory(client_id: str, key: str, value: str) -> str:
     return "saved"
 
 
+def find_open_thread(client_id: str, kind: str, thread_key: str | None) -> dict | None:
+    if not thread_key:
+        return None
+    with session_scope() as s:
+        a = s.scalar(
+            select(Approval).where(
+                Approval.client_id == client_id,
+                Approval.kind == kind,
+                Approval.thread_key == thread_key,
+                Approval.status == "pending",
+            )
+        )
+        return {"id": a.id, "facts": a.facts or {}} if a else None
+
+
 def submit_draft_for_approval(
     client_id: str,
     kind: str,
@@ -46,8 +61,23 @@ def submit_draft_for_approval(
     reason: str,
     document_id: int | None = None,
     trip_id: str | None = None,
+    thread_key: str | None = None,
+    facts: dict | None = None,
 ) -> int:
     with session_scope() as s:
+        existing = None
+        if thread_key:
+            existing = s.scalar(
+                select(Approval).where(
+                    Approval.client_id == client_id,
+                    Approval.kind == kind,
+                    Approval.thread_key == thread_key,
+                    Approval.status == "pending",
+                )
+            )
+        if existing:  # update the open draft instead of sending the client a second email
+            existing.subject, existing.body, existing.reason, existing.facts = subject, body, reason, facts
+            return existing.id
         approval = Approval(
             client_id=client_id,
             kind=kind,
@@ -58,10 +88,28 @@ def submit_draft_for_approval(
             reason=reason,
             document_id=document_id,
             trip_id=trip_id,
+            thread_key=thread_key,
+            facts=facts,
         )
         s.add(approval)
         s.flush()
         return approval.id
+
+
+def _merge_facts(old: dict, new: dict) -> dict:
+    merged = {**old, **new}
+    seen = list(old.get("mismatches", []))
+    seen += [m for m in new.get("mismatches", []) if m not in seen]
+    if seen:
+        merged["mismatches"] = seen
+    return merged
+
+
+def _fmt_eta(value: str | None) -> str:
+    try:
+        return datetime.fromisoformat(value).strftime("%d %b %Y, %H:%M")
+    except (TypeError, ValueError):
+        return str(value)
 
 
 def _template(kind: str, facts: dict, memory: dict) -> tuple[str, str]:
@@ -70,10 +118,10 @@ def _template(kind: str, facts: dict, memory: dict) -> tuple[str, str]:
     if kind == "billing_dispute":
         subject = f"Billing query on {facts.get('reference', 'your recent document')}"
         lines = "\n".join(f"- {m}" for m in facts.get("mismatches", []))
-        body = f"{greet},\n\nWhile reconciling {facts.get('reference', 'the document')} we found the following:\n{lines}\n\n{facts.get('summary', '')}\n\nPlease review and share a corrected copy or your clarification.\n\n{sign}"
+        body = f"{greet},\n\nWhile reconciling {facts.get('reference', 'the document')} we found the following:\n{lines}\n\nPlease review and share a corrected copy or your clarification.\n\n{sign}"
     elif kind == "delay_notice":
         subject = f"Delivery update: {facts.get('vehicle_no')} ({facts.get('origin')} to {facts.get('destination')})"
-        body = f"{greet},\n\nYour consignment on vehicle {facts.get('vehicle_no')} is running behind schedule. Reason: {facts.get('reason')}.\nRevised ETA: {facts.get('eta')}.\n\nWe are tracking it closely and will update you if anything changes.\n\n{sign}"
+        body = f"{greet},\n\nYour consignment on vehicle {facts.get('vehicle_no')} is running behind schedule. Reason: {facts.get('reason')}.\nRevised ETA: {_fmt_eta(facts.get('eta'))}.\n\nWe are tracking it closely and will update you if anything changes.\n\n{sign}"
     else:  # field_review
         subject = f"Document needs review: {facts.get('reference')}"
         body = f"Internal: {facts.get('reference')} could not be auto-verified.\nIssues:\n" + "\n".join(
@@ -98,8 +146,13 @@ def run_comms(
     llm: ClaudeLLM | None,
     document_id: int | None = None,
     trip_id: str | None = None,
+    thread_key: str | None = None,
 ) -> int:
     memory = call_tool(tracer, AGENT, "read_client_memory", read_client_memory, client_id=client_id)
+    open_thread = find_open_thread(client_id, kind, thread_key)
+    if open_thread:
+        facts = _merge_facts(open_thread["facts"], facts)
+        decision(tracer, AGENT, "merged_into_open_draft", {"approval_id": open_thread["id"], "thread_key": thread_key})
     subject, body = _template(kind, facts, memory)
     if llm is not None and kind != "field_review":
         try:
@@ -135,6 +188,8 @@ def run_comms(
         reason=facts.get("summary") or facts.get("reason", ""),
         document_id=document_id,
         trip_id=trip_id,
+        thread_key=thread_key,
+        facts=facts,
     )
     call_tool(
         tracer,

@@ -134,7 +134,7 @@ def analyse_trip(trip: Trip) -> TripAnalysis:
     # Indian highway trucks average ~35-45 km/h door to door; assume 40 when unknown.
     eff_speed = avg_speed * 0.8 if avg_speed else 40.0
     hours_needed = remaining / eff_speed
-    result.eta = (_ts(last.ts) + timedelta(hours=hours_needed)).isoformat()
+    result.eta = (_ts(last.ts) + timedelta(hours=hours_needed)).isoformat(timespec="minutes")
     if hours_needed > hours_left:
         result.anomalies.append(
             Anomaly("eta_breach", "high", f"needs {hours_needed:.1f} h, {max(hours_left, 0):.1f} h left before deadline", last.ts)

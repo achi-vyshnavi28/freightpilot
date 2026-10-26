@@ -1,0 +1,7 @@
+__pycache__
+*.db
+uploads
+models
+.pytest_cache
+.ruff_cache
+evals/results

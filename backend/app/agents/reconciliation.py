@@ -52,11 +52,11 @@ def compare_documents(doc_type: str, fields: dict, related: list[dict]) -> list[
         for key in ("vehicle_no", "invoice_no", "eway_bill_no"):
             result = _same(fields.get(key), o.get(key))
             if result is not None:
-                checks.append({"check": f"{key} matches {label}", "ok": result, "ours": fields.get(key), "theirs": o.get(key)})
+                checks.append({"check": f"{key} vs {label}", "ok": result, "ours": fields.get(key), "theirs": o.get(key)})
         for key in ("origin", "destination"):
             if fields.get(key) and o.get(key):
                 ok = canonical_city(fields[key]) == canonical_city(o[key])
-                checks.append({"check": f"{key} matches {label}", "ok": ok, "ours": fields[key], "theirs": o[key]})
+                checks.append({"check": f"{key} vs {label}", "ok": ok, "ours": fields[key], "theirs": o[key]})
         # E-way bill goods value must cover the invoice value.
         pair = {doc_type: fields, other["doc_type"]: o}
         inv, ewb = pair.get("gst_invoice"), pair.get("eway_bill")
@@ -64,7 +64,7 @@ def compare_documents(doc_type: str, fields: dict, related: list[dict]) -> list[
             ok = abs(inv["total_amount"] - ewb["goods_value"]) <= 1.0
             checks.append(
                 {
-                    "check": f"e-way bill value equals invoice total ({label})",
+                    "check": f"e-way bill goods value vs invoice total ({label})",
                     "ok": ok,
                     "ours": fields.get("total_amount") or fields.get("goods_value"),
                     "theirs": o.get("total_amount") or o.get("goods_value"),
@@ -72,7 +72,7 @@ def compare_documents(doc_type: str, fields: dict, related: list[dict]) -> list[
             )
         if fields.get("weight_kg") and o.get("weight_kg"):
             ok = abs(fields["weight_kg"] - o["weight_kg"]) / max(o["weight_kg"], 1) <= 0.02
-            checks.append({"check": f"weight matches {label}", "ok": ok, "ours": fields["weight_kg"], "theirs": o["weight_kg"]})
+            checks.append({"check": f"weight vs {label}", "ok": ok, "ours": fields["weight_kg"], "theirs": o["weight_kg"]})
     return checks
 
 
@@ -133,7 +133,7 @@ def run_reconciliation(
     mismatches = [c for c in checks if not c["ok"]]
     if rate_check and rate_check.get("ok") is False:
         mismatches.append(
-            {"check": "freight within contract rate", "ok": False, "ours": billed, "theirs": rate_check["contract_rate"]}
+            {"check": "freight vs contract rate", "ok": False, "ours": billed, "theirs": rate_check["contract_rate"]}
         )
 
     citation_ids = [rate_check["citation"]["id"]] if rate_check and rate_check.get("citation") else []

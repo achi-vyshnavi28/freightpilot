@@ -48,6 +48,16 @@ def test_overcharge_drafts_dispute_but_nothing_is_sent():
         assert s.query(Outbox).count() == 0
 
 
+def test_one_dispute_per_shipment_not_per_document():
+    ship = next(s for s in build_shipments(9) if s.mismatch_kind == "overcharge")
+    for sample in ship.docs:  # invoice and lorry receipt both carry the overcharged freight
+        _process("acme-steel", sample)
+    with session_scope() as s:
+        disputes = s.query(Approval).filter_by(kind="billing_dispute").all()
+        assert len(disputes) == 1
+        assert disputes[0].body.count("above the contracted") == 1
+
+
 def test_injected_invoice_goes_to_review_and_skips_reconciliation():
     ship = build_shipments(11)[10]
     state, doc_id = _process("acme-steel", ship.docs[0])

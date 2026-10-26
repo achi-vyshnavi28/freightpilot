@@ -79,6 +79,9 @@ class Approval(Base):
     subject: Mapped[str] = mapped_column(String(255), default="")
     body: Mapped[str] = mapped_column(Text, default="")
     reason: Mapped[str] = mapped_column(Text, default="")
+    # Findings about the same shipment (same invoice number) merge into one pending draft.
+    thread_key: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    facts: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     decided_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     decided_at: Mapped[datetime | None] = mapped_column(nullable=True)

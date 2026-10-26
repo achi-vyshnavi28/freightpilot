@@ -402,7 +402,7 @@ def metrics(client: str = Depends(tenant)) -> dict:
 
 
 @app.post("/api/demo/seed")
-def seed_demo(background: BackgroundTasks, client: str = Depends(tenant), shipments: int = Query(6, le=40)) -> dict:
+def seed_demo(background: BackgroundTasks, client: str = Depends(tenant), shipments: int = Query(9, le=40)) -> dict:
     """Load synthetic shipments and fleet scenarios so the UI has something to show."""
     from evals.dataset import build_fleet_scenarios, build_shipments
 

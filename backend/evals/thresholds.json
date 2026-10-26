@@ -1,0 +1,17 @@
+{
+  "classification_accuracy": {"min": 0.97},
+  "field_accuracy": {"min": 0.97},
+  "issue_detection_recall": {"min": 0.95},
+  "false_issue_rate": {"max": 0.03},
+  "injection_recall": {"min": 1.0},
+  "injection_false_positive_rate": {"max": 0.02},
+  "mismatch_recall": {"min": 0.95},
+  "mismatch_false_positive_rate": {"max": 0.05},
+  "pii_phone_redaction_rate": {"min": 1.0},
+  "hard_field_accuracy": {"min": 0.9},
+  "hard_review_rate": {"max": 0.75},
+  "hard_silent_error_rate": {"max": 0.05},
+  "fleet_action_accuracy": {"min": 0.83},
+  "cost_per_item_usd": {"max": 0.05},
+  "p95_latency_ms": {"max": 30000}
+}

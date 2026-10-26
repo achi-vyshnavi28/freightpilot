@@ -1,0 +1,41 @@
+[project]
+name = "freightpilot"
+version = "0.1.0"
+description = "Multi-agent back office for Indian transporters: document extraction, reconciliation, fleet monitoring."
+requires-python = ">=3.11"
+dependencies = [
+  "anthropic>=2.3",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.7",
+  "sqlalchemy>=2.0",
+  "langgraph>=1.0",
+  "mcp>=2.0",
+  "scikit-learn>=1.5",
+  "numpy>=1.26",
+  "pypdf>=4.0",
+  "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.6"]
+postgres = ["psycopg[binary]>=3.2"]
+ocr = ["pytesseract>=0.3", "pillow>=10"]
+vision = ["ultralytics>=8.3", "opencv-python-headless>=4.10", "easyocr>=1.7"]
+train = ["torch>=2.3", "transformers>=4.44", "datasets>=2.20", "peft>=0.12", "pillow>=10", "sentencepiece>=0.2"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 130
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["B008", "E731", "SIM108", "E501"]  # long lines are prompt/template strings; the formatter wraps code
+
+[tool.setuptools]
+packages = []

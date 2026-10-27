@@ -10,3 +10,7 @@ backend/evals/results/
 frontend/node_modules/
 frontend/dist/
 .env
+
+# local backup archives
+*.zip
+*.bundle
